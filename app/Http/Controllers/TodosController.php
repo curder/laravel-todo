@@ -7,6 +7,7 @@ use App\Http\Resources\TodoResource;
 use App\Todo;
 use Exception;
 use Illuminate\Contracts\Routing\ResponseFactory;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -23,7 +24,7 @@ class TodosController extends Controller
      */
     public function index()
     {
-        return response(TodoResource::collection(Todo::all()), Response::HTTP_OK);
+        return response(TodoResource::collection(Todo::where(['user_id' => auth()->id()])->get()), Response::HTTP_OK);
     }
 
     /**
@@ -35,7 +36,7 @@ class TodosController extends Controller
      */
     public function store(TodoRequest $request)
     {
-        $todo = Todo::create($request->all());
+        $todo = Todo::create($request->merge(['user_id' => auth()->id()])->all());
 
         return response(TodoResource::make($todo), Response::HTTP_CREATED);
     }
@@ -46,10 +47,13 @@ class TodosController extends Controller
      * @param TodoRequest $request
      * @param Todo        $todo
      *
-     * @return Response
+     * @return ResponseFactory|JsonResponse|Response
      */
     public function update(TodoRequest $request, Todo $todo)
     {
+        if ($request->user_id !== $todo->user_id) {
+            return response('Unauthorized', Response::HTTP_UNAUTHORIZED);
+        }
         $todo->update($request->all());
 
         return response(TodoResource::make($todo), Response::HTTP_OK);
@@ -66,7 +70,7 @@ class TodosController extends Controller
             'completed' => 'required|boolean',
         ]);
 
-        Todo::query()->update($data);
+        Todo::where(['user_id' => auth()->id()])->update($data);
 
         return response('Updated', Response::HTTP_OK);
     }
@@ -76,11 +80,15 @@ class TodosController extends Controller
      *
      * @param Todo $todo
      *
-     * @return Response
+     * @return JsonResponse|Response
      * @throws Exception
      */
     public function destroy(Todo $todo)
     {
+        if ($todo->user_id !== auth()->id()) {
+            return response()->json('Unauthorized', Response::HTTP_UNAUTHORIZED);
+        }
+
         $todo->delete();
 
         return response(TodoResource::make($todo), Response::HTTP_OK);
@@ -100,7 +108,20 @@ class TodosController extends Controller
             'todos' => 'required|array',
         ]);
 
-        Todo::destroy($request->todos);
+        $todosToDelete = $request->todos;
+        $userTodoIds = auth()->user()->todos->map(function ($todo) {
+            return $todo->id;
+        });
+
+        $valid = collect($todosToDelete)->every(function ($value, $key) use ($userTodoIds) {
+            return $userTodoIds->contains($value);
+        });
+
+        if (!$valid) {
+            return response('Unauthorized', Response::HTTP_UNAUTHORIZED);
+        }
+
+        Todo::destroy($todosToDelete);
 
         return response('Destroy', Response::HTTP_OK);
     }

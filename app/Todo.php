@@ -13,10 +13,18 @@ use Illuminate\Database\Eloquent\Model;
 class Todo extends Model
 {
     protected $fillable = [
-        'title', 'completed'
+        'user_id', 'title', 'completed'
     ];
 
     protected $casts = [
         'completed' => 'boolean',
     ];
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
