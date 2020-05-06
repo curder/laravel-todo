@@ -47,4 +47,9 @@ DB_PASSWORD=secret
 | PATCH、PUT| `/api/todos/{todoID}` | 200 | 更新todo |
 | DELETE | `/api/todos/delete-completed` | 200 | 删除已完成的todos | 
 | DELETE | `/api/todos/{todoID}` | 200 | 删除todo |
-
+|  GET | `/api/user` | 200 | 获取用户 |
+| POST | `/api/login` | 200 | 登录 |
+| POST | `/api/logout` | 200 | 退出登录 |
+| POST | `/api/register` | 200 | 注册 |
+| POST | `oauth/token` | 200 | 获取access_token |
+| DELETE | `oauth/tokens/{token_id}` | 200 | 回收token |                       
