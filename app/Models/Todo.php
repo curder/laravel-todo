@@ -1,8 +1,10 @@
 <?php
 
-namespace App;
+namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Class Todo
@@ -12,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Todo extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id', 'title', 'completed'
     ];
@@ -21,9 +25,9 @@ class Todo extends Model
     ];
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
