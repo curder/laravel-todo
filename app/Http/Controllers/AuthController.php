@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use GuzzleHttp\Exception\BadResponseException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
+use Symfony\Component\HttpFoundation\Response;
+use function response;
 
 /**
  * Class AuthController
@@ -17,28 +18,32 @@ class AuthController extends Controller
     /**
      * @param Request $request
      *
-     * @return \Illuminate\Http\Client\Response|\Illuminate\Http\JsonResponse
+     * @return Response|JsonResponse
      */
     public function login(Request $request)
     {
-        try {
-            $response = Http::post(config('services.passport.login_endpoint'), [
-                'grant_type'    => 'password',
-                'client_id'     => config('services.passport.client_id'),
-                'client_secret' => config('services.passport.client_secret'),
-                'username'      => $request->username,
-                'password'      => $request->password,
-            ]);
-            return $response;
-        } catch (BadResponseException $e) {
-            if ($e->getCode() === 400) {
-                return response()->json('Invalid Request. Please enter a username or a password.', $e->getCode());
-            } else if ($e->getCode() === 401) {
-                return response()->json('Your credentials are incorrect. Please try again', $e->getCode());
-            }
-
-            return response()->json('Something went wrong on the server.', $e->getCode());
+        $user = User::where('email', $request->username)->first();
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(
+                [
+                    'message' => 'Your credentials are incorrect. Please try again',
+                    'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                    'data' => []
+                ],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
         }
+
+        return response()->json([
+            'data' => [
+                'token_type' => 'Bearer',
+                "expires_in" => 31622400,
+                'access_token' => $user->createToken('auth_token')->accessToken,
+            ],
+            'message' => 'Login successful',
+            'status' => Response::HTTP_OK,
+        ], Response::HTTP_OK);
+
     }
 
     /**
@@ -49,20 +54,30 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'username'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users',
+            'username' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
         ]);
 
-        return User::create([
-            'name'     => $request->username,
-            'email'    => $request->email,
+        $user = User::create([
+            'name' => $request->username,
+            'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
+
+        return response()->json([
+            'data' => [
+                'token_type' => 'Bearer',
+                "expires_in" => 31622400,
+                'access_token' => $user->createToken('auth_token')->accessToken,
+            ],
+            'message' => 'Registration successful',
+            'status' => Response::HTTP_CREATED,
+        ], Response::HTTP_CREATED);
     }
 
     /**
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function logout()
     {
